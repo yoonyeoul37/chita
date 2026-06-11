@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { View, Text, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../../supabase';
 import { useAuth } from '../context/AuthContext';
 import { BLUE, WHITE } from '../constants';
@@ -29,10 +28,7 @@ export default function LoginScreen({ navigation }) {
   const handleGoogleLogin = async () => {
     setGLoading(true);
     try {
-      const redirectUri = makeRedirectUri({
-        scheme: 'exp',
-        path: 'chita',
-      });
+      const redirectUri = 'https://www.chita.kr/auth/callback';
       console.log('redirectUri:', redirectUri);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
