@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import { supabase } from '../../supabase';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { BLUE, WHITE, BG, TREATMENTS, SUBTYPE_KR } from '../constants';
@@ -18,6 +19,8 @@ export default function DetailScreen({ route, navigation }) {
   }, [clinic.id]);
 
   const byTreatment = (key) => prices.filter(p => p.treatment === key);
+
+ const mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(clinic.address)}`;
 
   return (
     <SafeAreaView style={{ flex:1, backgroundColor:BG }}>
@@ -60,7 +63,7 @@ export default function DetailScreen({ route, navigation }) {
 
         <View style={{ flexDirection:'row', backgroundColor:WHITE,
           borderBottomWidth:1, borderBottomColor:'#F3F4F6' }}>
-          {[['prices','가격표'],['info','병원정보']].map(([k,l]) => (
+          {[['prices','가격표'],['map','지도'],['info','병원정보']].map(([k,l]) => (
             <TouchableOpacity key={k} onPress={() => setTab(k)}
               style={{ flex:1, alignItems:'center', paddingVertical:12 }}>
               <Text style={{ fontSize:14, fontWeight:tab===k?'700':'500',
@@ -109,6 +112,18 @@ export default function DetailScreen({ route, navigation }) {
           </View>
         )}
 
+        {tab === 'map' && (
+          <View style={{ height:400, margin:16, borderRadius:14, overflow:'hidden',
+            borderWidth:1, borderColor:'#E5E7EB' }}>
+            <WebView
+              source={{ uri: mapUrl }}
+              style={{ flex:1 }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+            />
+          </View>
+        )}
+
         {tab === 'info' && (
           <View style={{ backgroundColor:WHITE, margin:16, borderRadius:14, padding:16,
             borderWidth:1, borderColor:'#E5E7EB' }}>
@@ -129,9 +144,11 @@ export default function DetailScreen({ route, navigation }) {
         )}
 
         <View style={{ flexDirection:'row', padding:16, paddingBottom:24 }}>
-          <TouchableOpacity style={{ flex:1, alignItems:'center', justifyContent:'center',
-            backgroundColor:WHITE, borderWidth:2, borderColor:BLUE, borderRadius:14,
-            paddingVertical:14, flexDirection:'row', marginRight:10 }}>
+          <TouchableOpacity
+            onPress={() => clinic.phone && Linking.openURL(`tel:${clinic.phone}`)}
+            style={{ flex:1, alignItems:'center', justifyContent:'center',
+              backgroundColor:WHITE, borderWidth:2, borderColor:BLUE, borderRadius:14,
+              paddingVertical:14, flexDirection:'row', marginRight:10 }}>
             <Ionicons name="call-outline" size={16} color={BLUE} />
             <Text style={{ fontSize:15, fontWeight:'700', color:BLUE, marginLeft:7 }}>전화 연결</Text>
           </TouchableOpacity>

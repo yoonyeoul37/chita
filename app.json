@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.chita.app"
+      "bundleIdentifier": "com.chita.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "현재 위치를 기반으로 주변 치과를 찾습니다."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,13 +26,20 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.chita.app"
+      "package": "com.chita.app",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "현재 위치를 기반으로 주변 치과를 찾습니다."
+        }
+      ],
       [
         "expo-web-browser",
         {
