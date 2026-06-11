@@ -1,43 +1,72 @@
-import { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../supabase';
+import { useAuth } from '../context/AuthContext';
 import { BLUE, WHITE, BG, timeAgo } from '../constants';
 
 export default function PostDetailScreen({ route, navigation }) {
   const { postId } = route.params;
+  const { user } = useAuth();
   const [post,     setPost]     = useState(null);
   const [comments, setComments] = useState([]);
   const [comment,  setComment]  = useState('');
   const [loading,  setLoading]  = useState(false);
 
-  useEffect(() => {
-    fetchPost();
-    fetchComments();
-  }, [postId]);
-
-  const fetchPost = async () => {
+  const fetchPost = useCallback(async () => {
     const { data } = await supabase.from('posts').select('*').eq('id', postId).single();
     setPost(data);
     if (data) await supabase.from('posts').update({ views:(data.views||0)+1 }).eq('id', postId);
-  };
+  }, [postId]);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     const { data } = await supabase.from('comments').select('*')
       .eq('post_id', postId).order('created_at', { ascending:true });
     setComments(data || []);
-  };
+  }, [postId]);
+
+  useEffect(() => {
+    fetchPost();
+    fetchComments();
+    // 수정 후 돌아왔을 때 자동 새로고침
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchPost();
+    });
+    return unsubscribe;
+  }, [fetchPost, fetchComments, navigation]);
 
   const submitComment = async () => {
     if (!comment.trim()) return;
+    if (!user) { navigation.navigate('로그인'); return; }
     setLoading(true);
     await supabase.from('comments').insert({
-      post_id: postId, content: comment.trim(), author_name: '익명',
+      post_id:     postId,
+      content:     comment.trim(),
+      author_name: user?.user_metadata?.nickname || '익명',
+      user_id:     user?.id || null,
     });
     setComment('');
     fetchComments();
     setLoading(false);
   };
+
+  const handleDelete = () => {
+    Alert.alert('글 삭제', '정말 삭제하시겠어요?', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: async () => {
+        const { error } = await supabase.from('posts').delete().eq('id', postId);
+        if (!error) {
+          Alert.alert('삭제 완료', '글이 삭제됐어요', [
+            { text: '확인', onPress: () => navigation.goBack() }
+          ]);
+        } else {
+          Alert.alert('오류', '삭제에 실패했어요');
+        }
+      }},
+    ]);
+  };
+
+  const isMyPost = user && post?.user_id === user.id;
 
   if (!post) return (
     <SafeAreaView style={{ flex:1, backgroundColor:WHITE, alignItems:'center', justifyContent:'center' }}>
@@ -55,10 +84,23 @@ export default function PostDetailScreen({ route, navigation }) {
         <Text style={{ fontSize:16, fontWeight:'700', color:'#111827', flex:1 }} numberOfLines={1}>
           {post.title}
         </Text>
+        {isMyPost && (
+          <View style={{ flexDirection:'row', alignItems:'center' }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('글수정', { post })}
+              style={{ paddingHorizontal:10, paddingVertical:6 }}>
+              <Text style={{ fontSize:13, fontWeight:'700', color:BLUE }}>수정</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={{ paddingHorizontal:10, paddingVertical:6 }}>
+              <Text style={{ fontSize:13, fontWeight:'700', color:'#EF4444' }}>삭제</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* 본문 */}
         <View style={{ backgroundColor:WHITE, padding:20, marginBottom:8 }}>
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:12 }}>
             <View style={{ backgroundColor:'#EFF6FF', paddingVertical:3,
@@ -82,7 +124,6 @@ export default function PostDetailScreen({ route, navigation }) {
           <Text style={{ fontSize:15, color:'#374151', lineHeight:26 }}>{post.content}</Text>
         </View>
 
-        {/* 댓글 */}
         <View style={{ backgroundColor:WHITE, padding:20 }}>
           <Text style={{ fontSize:15, fontWeight:'800', color:'#111827', marginBottom:16 }}>
             댓글 {comments.length}개
@@ -124,11 +165,11 @@ export default function PostDetailScreen({ route, navigation }) {
             </View>
           ))}
 
-          {/* 댓글 입력 */}
           <View style={{ marginTop:8, borderWidth:1, borderColor:'#E5E7EB', borderRadius:12, padding:12 }}>
             <TextInput
               value={comment} onChangeText={setComment}
-              placeholder="댓글을 입력하세요..." placeholderTextColor="#9CA3AF"
+              placeholder={user ? '댓글을 입력하세요...' : '로그인 후 댓글을 작성할 수 있어요'}
+              placeholderTextColor="#9CA3AF"
               multiline
               style={{ fontSize:14, color:'#111827', minHeight:60,
                 textAlignVertical:'top', marginBottom:8 }}

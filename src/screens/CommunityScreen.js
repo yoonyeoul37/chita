@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../supabase';
+import { useAuth } from '../context/AuthContext';
 import { BLUE, WHITE, BG, timeAgo } from '../constants';
 
 export default function CommunityScreen({ navigation }) {
+  const { user } = useAuth();
   const [cat,     setCat]     = useState('전체');
   const [posts,   setPosts]   = useState([]);
   const [loading, setLoading] = useState(false);
   const cats = ['전체','치료후기','질문·상담','가격정보','치과추천'];
 
-  useEffect(() => { fetchPosts(); }, [cat]);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     setLoading(true);
     let query = supabase.from('posts').select('*')
       .order('created_at', { ascending:false }).limit(20);
@@ -20,6 +20,24 @@ export default function CommunityScreen({ navigation }) {
     const { data } = await query;
     setPosts(data || []);
     setLoading(false);
+  }, [cat]);
+
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  // 화면 포커스될 때마다 새로고침
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchPosts();
+    });
+    return unsubscribe;
+  }, [navigation, fetchPosts]);
+
+  const handleWrite = () => {
+    if (!user) {
+      navigation.navigate('로그인');
+    } else {
+      navigation.navigate('글쓰기');
+    }
   };
 
   return (
@@ -27,12 +45,21 @@ export default function CommunityScreen({ navigation }) {
       <View style={{ backgroundColor:WHITE, padding:20, borderBottomWidth:1, borderBottomColor:'#F3F4F6',
         flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
         <Text style={{ fontSize:20, fontWeight:'900', color:'#111827' }}>커뮤니티</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('글쓰기')}
-          style={{ backgroundColor:BLUE, borderRadius:10, paddingVertical:8,
-            paddingHorizontal:14, flexDirection:'row', alignItems:'center' }}>
-          <Ionicons name="add" size={14} color={WHITE} />
-          <Text style={{ fontSize:13, fontWeight:'700', color:WHITE, marginLeft:4 }}>글쓰기</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection:'row', alignItems:'center' }}>
+          {!user && (
+            <TouchableOpacity onPress={() => navigation.navigate('로그인')}
+              style={{ borderWidth:1, borderColor:BLUE, borderRadius:10, paddingVertical:8,
+                paddingHorizontal:14, marginRight:8 }}>
+              <Text style={{ fontSize:13, fontWeight:'700', color:BLUE }}>로그인</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={handleWrite}
+            style={{ backgroundColor:BLUE, borderRadius:10, paddingVertical:8,
+              paddingHorizontal:14, flexDirection:'row', alignItems:'center' }}>
+            <Ionicons name="add" size={14} color={WHITE} />
+            <Text style={{ fontSize:13, fontWeight:'700', color:WHITE, marginLeft:4 }}>글쓰기</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}

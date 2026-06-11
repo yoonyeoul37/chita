@@ -1,32 +1,33 @@
 import { useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../supabase';
-import { useAuth } from '../context/AuthContext';
 import { BLUE, WHITE } from '../constants';
 
-export default function WritePostScreen({ navigation }) {
-  const { user } = useAuth();
-  const [category, setCategory] = useState('치료후기');
-  const [title,    setTitle]    = useState('');
-  const [content,  setContent]  = useState('');
+export default function EditPostScreen({ route, navigation }) {
+  const { post } = route.params;
+  const [category, setCategory] = useState(post.category);
+  const [title,    setTitle]    = useState(post.title);
+  const [content,  setContent]  = useState(post.content);
   const [loading,  setLoading]  = useState(false);
   const cats = ['치료후기','질문·상담','가격정보','치과추천'];
-
-  const nickname = user?.user_metadata?.nickname || '익명';
 
   const submit = async () => {
     if (!title.trim() || !content.trim()) return;
     setLoading(true);
-    const { error } = await supabase.from('posts').insert({
+    const { error } = await supabase.from('posts').update({
       category,
-      title:       title.trim(),
-      content:     content.trim(),
-      author_name: nickname,
-      user_id:     user?.id || null,
-    });
+      title:   title.trim(),
+      content: content.trim(),
+    }).eq('id', post.id);
     setLoading(false);
-    if (!error) navigation.goBack();
+    if (!error) {
+      Alert.alert('수정 완료', '글이 수정됐어요 ✅', [
+        { text: '확인', onPress: () => navigation.goBack() }
+      ]);
+    } else {
+      Alert.alert('오류', '수정에 실패했어요');
+    }
   };
 
   return (
@@ -36,30 +37,17 @@ export default function WritePostScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={{ fontSize:16, fontWeight:'700', color:'#111827' }}>글쓰기</Text>
+        <Text style={{ fontSize:16, fontWeight:'700', color:'#111827' }}>글 수정</Text>
         <TouchableOpacity onPress={submit} disabled={!title.trim() || !content.trim() || loading}>
-          <Text style={{ fontSize:15, fontWeight:'700',
-            color: title.trim() && content.trim() ? BLUE : '#D1D5DB' }}>
-            {loading ? '등록 중...' : '등록'}
-          </Text>
+          {loading
+            ? <ActivityIndicator size="small" color={BLUE} />
+            : <Text style={{ fontSize:15, fontWeight:'700',
+                color: title.trim() && content.trim() ? BLUE : '#D1D5DB' }}>저장</Text>
+          }
         </TouchableOpacity>
       </View>
 
       <ScrollView style={{ flex:1, padding:16 }}>
-
-        {/* 작성자 표시 */}
-        <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20,
-          backgroundColor:'#F9FAFB', borderRadius:12, padding:12 }}>
-          <View style={{ width:32, height:32, backgroundColor:'#EFF6FF', borderRadius:16,
-            alignItems:'center', justifyContent:'center', marginRight:10 }}>
-            <Ionicons name="person" size={16} color={BLUE} />
-          </View>
-          <View>
-            <Text style={{ fontSize:14, fontWeight:'700', color:'#111827' }}>{nickname}</Text>
-            <Text style={{ fontSize:11, color:'#9CA3AF' }}>{user?.email || '비로그인'}</Text>
-          </View>
-        </View>
-
         <Text style={{ fontSize:13, fontWeight:'700', color:'#374151', marginBottom:8 }}>카테고리</Text>
         <View style={{ flexDirection:'row', flexWrap:'wrap', marginBottom:16 }}>
           {cats.map(c => (
@@ -96,10 +84,6 @@ export default function WritePostScreen({ navigation }) {
             paddingHorizontal:14, paddingVertical:12, fontSize:15,
             marginBottom:16, minHeight:150, color:'#111827' }}
         />
-
-        <Text style={{ fontSize:12, color:'#9CA3AF', textAlign:'center', marginBottom:24 }}>
-          개인 병원 광고·홍보 글은 삭제될 수 있습니다
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );
